@@ -65,6 +65,7 @@ public class TelegramBotJob implements Job {
             }
         }
         List<TgDomainConfig> tgDomainConfigs = (List<TgDomainConfig>) tgDomainConfigService.listByIds(ids);
+
     }
 
     private void setIpAddress(){
