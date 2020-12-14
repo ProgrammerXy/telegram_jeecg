@@ -7,16 +7,7 @@ import org.jeecg.common.exception.JeecgBootException;
 import org.jeecg.modules.quartz.entity.QuartzJob;
 import org.jeecg.modules.quartz.mapper.QuartzJobMapper;
 import org.jeecg.modules.quartz.service.IQuartzJobService;
-import org.quartz.CronScheduleBuilder;
-import org.quartz.CronTrigger;
-import org.quartz.Job;
-import org.quartz.JobBuilder;
-import org.quartz.JobDetail;
-import org.quartz.JobKey;
-import org.quartz.Scheduler;
-import org.quartz.SchedulerException;
-import org.quartz.TriggerBuilder;
-import org.quartz.TriggerKey;
+import org.quartz.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -50,7 +41,7 @@ public class QuartzJobServiceImpl extends ServiceImpl<QuartzJobMapper, QuartzJob
 	public boolean saveAndScheduleJob(QuartzJob quartzJob) {
 		if (CommonConstant.STATUS_NORMAL.equals(quartzJob.getStatus())) {
 			// 定时器添加
-			this.schedulerAdd(quartzJob.getJobClassName().trim(), quartzJob.getCronExpression().trim(), quartzJob.getParameter());
+			this.schedulerAdd(quartzJob.getJobClassName().trim(), quartzJob.getCronExpression(), quartzJob.getParameter());
 		}
 		// DB设置修改
 		quartzJob.setDelFlag(CommonConstant.DEL_FLAG_0);
@@ -63,7 +54,7 @@ public class QuartzJobServiceImpl extends ServiceImpl<QuartzJobMapper, QuartzJob
 	@Override
 	public boolean resumeJob(QuartzJob quartzJob) {
 		schedulerDelete(quartzJob.getJobClassName().trim());
-		schedulerAdd(quartzJob.getJobClassName().trim(), quartzJob.getCronExpression().trim(), quartzJob.getParameter());
+		schedulerAdd(quartzJob.getJobClassName().trim(), quartzJob.getCronExpression(), quartzJob.getParameter());
 		quartzJob.setStatus(CommonConstant.STATUS_NORMAL);
 		return this.updateById(quartzJob);
 	}
@@ -76,7 +67,7 @@ public class QuartzJobServiceImpl extends ServiceImpl<QuartzJobMapper, QuartzJob
 	public boolean editAndScheduleJob(QuartzJob quartzJob) throws SchedulerException {
 		if (CommonConstant.STATUS_NORMAL.equals(quartzJob.getStatus())) {
 			schedulerDelete(quartzJob.getJobClassName().trim());
-			schedulerAdd(quartzJob.getJobClassName().trim(), quartzJob.getCronExpression().trim(), quartzJob.getParameter());
+			schedulerAdd(quartzJob.getJobClassName().trim(), quartzJob.getCronExpression(), quartzJob.getParameter());
 		}else{
 			scheduler.pauseJob(JobKey.jobKey(quartzJob.getJobClassName().trim()));
 		}
@@ -97,10 +88,10 @@ public class QuartzJobServiceImpl extends ServiceImpl<QuartzJobMapper, QuartzJob
 	 * 添加定时任务
 	 * 
 	 * @param jobClassName
-	 * @param cronExpression
+	 * @param second
 	 * @param parameter
 	 */
-	private void schedulerAdd(String jobClassName, String cronExpression, String parameter) {
+	private void schedulerAdd(String jobClassName, Integer second, String parameter) {
 		try {
 			// 启动调度器
 			scheduler.start();
@@ -109,12 +100,11 @@ public class QuartzJobServiceImpl extends ServiceImpl<QuartzJobMapper, QuartzJob
 			JobDetail jobDetail = JobBuilder.newJob(getClass(jobClassName).getClass()).withIdentity(jobClassName).usingJobData("parameter", parameter).build();
 
 			// 表达式调度构建器(即任务执行的时间)
-			CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronSchedule(cronExpression);
-
+			SimpleScheduleBuilder simpleScheduleBuilder = SimpleScheduleBuilder.simpleSchedule().withIntervalInSeconds(second).repeatForever();
 			// 按新的cronExpression表达式构建一个新的trigger
-			CronTrigger trigger = TriggerBuilder.newTrigger().withIdentity(jobClassName).withSchedule(scheduleBuilder).build();
+			Trigger trigger = TriggerBuilder.newTrigger().withIdentity(jobClassName).withSchedule(simpleScheduleBuilder).build();
 
-			scheduler.scheduleJob(jobDetail, trigger);
+			this.scheduler.scheduleJob(jobDetail, trigger);
 		} catch (SchedulerException e) {
 			throw new JeecgBootException("创建定时任务失败", e);
 		} catch (RuntimeException e) {

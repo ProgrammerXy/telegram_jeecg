@@ -46,7 +46,7 @@ public class QuartzJob implements Serializable {
 	private java.lang.String jobClassName;
 	/**cron表达式*/
 	@Excel(name="cron表达式",width=30)
-	private java.lang.String cronExpression;
+	private java.lang.Integer cronExpression;
 	/**参数*/
 	@Excel(name="参数",width=15)
 	private java.lang.String parameter;
