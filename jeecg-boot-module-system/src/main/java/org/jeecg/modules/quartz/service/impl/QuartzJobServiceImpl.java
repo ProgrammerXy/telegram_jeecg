@@ -88,10 +88,10 @@ public class QuartzJobServiceImpl extends ServiceImpl<QuartzJobMapper, QuartzJob
 	 * 添加定时任务
 	 * 
 	 * @param jobClassName
-	 * @param second
+	 * @param cronExpression
 	 * @param parameter
 	 */
-	private void schedulerAdd(String jobClassName, Integer second, String parameter) {
+	private void schedulerAdd(String jobClassName, Integer cronExpression, String parameter) {
 		try {
 			// 启动调度器
 			scheduler.start();
@@ -100,11 +100,12 @@ public class QuartzJobServiceImpl extends ServiceImpl<QuartzJobMapper, QuartzJob
 			JobDetail jobDetail = JobBuilder.newJob(getClass(jobClassName).getClass()).withIdentity(jobClassName).usingJobData("parameter", parameter).build();
 
 			// 表达式调度构建器(即任务执行的时间)
-			SimpleScheduleBuilder simpleScheduleBuilder = SimpleScheduleBuilder.simpleSchedule().withIntervalInSeconds(second).repeatForever();
-			// 按新的cronExpression表达式构建一个新的trigger
-			Trigger trigger = TriggerBuilder.newTrigger().withIdentity(jobClassName).withSchedule(simpleScheduleBuilder).build();
+			SimpleScheduleBuilder scheduleBuilder = SimpleScheduleBuilder.simpleSchedule().withIntervalInSeconds(3000).repeatForever();
 
-			this.scheduler.scheduleJob(jobDetail, trigger);
+			// 按新的cronExpression表达式构建一个新的trigger
+			Trigger trigger = TriggerBuilder.newTrigger().withIdentity(jobClassName).withSchedule(scheduleBuilder).build();
+
+			scheduler.scheduleJob(jobDetail, trigger);
 		} catch (SchedulerException e) {
 			throw new JeecgBootException("创建定时任务失败", e);
 		} catch (RuntimeException e) {
