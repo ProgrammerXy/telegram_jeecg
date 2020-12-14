@@ -66,6 +66,10 @@ public class TelegramBotJob implements Job {
         }
         List<TgDomainConfig> tgDomainConfigs = (List<TgDomainConfig>) tgDomainConfigService.listByIds(ids);
 
+        for (Map.Entry<String,Integer> entry : cityMap.entrySet()) {
+            System.out.println("Key = " + entry.getKey() + ", Value = " + entry.getValue());
+        }
+
     }
 
     private void setIpAddress(){
