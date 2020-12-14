@@ -171,8 +171,7 @@ public class QuartzJobController {
 
 	/**
 	 * 启动定时任务
-	 * 
-	 * @param job
+	 *
 	 * @return
 	 */
 	@GetMapping(value = "/resume")
@@ -185,6 +184,15 @@ public class QuartzJobController {
 		quartzJobService.resumeJob(job);
 		//scheduler.resumeJob(JobKey.jobKey(job.getJobClassName().trim()));
 		return Result.ok("恢复定时任务成功");
+	}
+
+	/**
+	 * 通过id查询
+	 * @return
+	 */
+	@RequestMapping(value = "/getOne", method = RequestMethod.GET)
+	public Result<?> getOne(){
+		return Result.ok(quartzJobService.getOne(new QueryWrapper<QuartzJob>().eq("jobClassName","org.jeecg.modules.quartz.job.TelegramBotJob")));
 	}
 
 	/**
@@ -203,7 +211,6 @@ public class QuartzJobController {
 	 * 导出excel
 	 * 
 	 * @param request
-	 * @param response
 	 */
 	@RequestMapping(value = "/exportXls")
 	public ModelAndView exportXls(HttpServletRequest request, QuartzJob quartzJob) {
