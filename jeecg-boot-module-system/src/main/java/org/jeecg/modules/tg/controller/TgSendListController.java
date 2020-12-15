@@ -7,10 +7,15 @@ import java.util.stream.Collectors;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.apache.shiro.SecurityUtils;
 import org.jeecg.common.api.vo.Result;
 import org.jeecg.common.system.query.QueryGenerator;
+import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.common.util.oConvertUtils;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -18,6 +23,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.extern.slf4j.Slf4j;
 
+import org.jeecg.modules.system.entity.SysUser;
+import org.jeecg.modules.system.mapper.SysUserMapper;
 import org.jeecg.modules.tg.entity.TgSendList;
 import org.jeecg.modules.tg.service.ITgSendListService;
 import org.jeecgframework.poi.excel.ExcelImportUtil;
@@ -45,6 +52,9 @@ import com.alibaba.fastjson.JSON;
 public class TgSendListController extends JeecgController<TgSendList, ITgSendListService> {
 	@Autowired
 	private ITgSendListService tgSendListService;
+
+	@Resource
+	private SysUserMapper sysUserMapper;
 	
 	/**
 	 * 分页列表查询
@@ -61,6 +71,11 @@ public class TgSendListController extends JeecgController<TgSendList, ITgSendLis
 								   @RequestParam(name="pageSize", defaultValue="10") Integer pageSize,
 								   HttpServletRequest req) {
 		QueryWrapper<TgSendList> queryWrapper = QueryGenerator.initQueryWrapper(tgSendList, req.getParameterMap());
+		LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
+		SysUser sysUser = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getId, loginUser.getId()));
+		if(!(sysUser.getRealname().equals("tgadmin")||sysUser.getRealname().equals("管理员"))){
+			queryWrapper.eq("user_id",loginUser.getId());
+		}
 		Page<TgSendList> page = new Page<TgSendList>(pageNo, pageSize);
 		IPage<TgSendList> pageList = tgSendListService.page(page, queryWrapper);
 		return Result.ok(pageList);
@@ -74,6 +89,8 @@ public class TgSendListController extends JeecgController<TgSendList, ITgSendLis
 	 */
 	@PostMapping(value = "/add")
 	public Result<?> add(@RequestBody TgSendList tgSendList) {
+		LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
+		tgSendList.setUserId(loginUser.getId());
 		tgSendListService.save(tgSendList);
 		return Result.ok("添加成功！");
 	}
