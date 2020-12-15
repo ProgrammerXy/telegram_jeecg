@@ -192,7 +192,7 @@ public class QuartzJobController {
 	 */
 	@RequestMapping(value = "/getOne", method = RequestMethod.GET)
 	public Result<?> getOne(){
-		return Result.ok(quartzJobService.getOne(new QueryWrapper<QuartzJob>().eq("jobClassName","org.jeecg.modules.quartz.job.TelegramBotJob")));
+		return Result.ok(quartzJobService.getOne(new QueryWrapper<QuartzJob>().eq("job_class_name","org.jeecg.modules.quartz.job.TelegramBotJob")));
 	}
 
 	/**
