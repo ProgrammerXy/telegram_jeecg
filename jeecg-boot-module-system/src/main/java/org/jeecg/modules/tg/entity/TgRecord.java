@@ -48,7 +48,7 @@ public class TgRecord implements Serializable {
     private String sysOrgCode;
 	/**tg_domain_config表中的id*/
 	@Excel(name = "tg_domain_config表中的id", width = 15)
-    private String domianId;
+    private String domain;
 	/**测试ip*/
 	@Excel(name = "测试ip", width = 15)
     private String ip;

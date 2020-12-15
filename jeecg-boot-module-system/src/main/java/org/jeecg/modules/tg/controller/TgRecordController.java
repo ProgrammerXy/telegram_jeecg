@@ -59,8 +59,16 @@ public class TgRecordController extends JeecgController<TgRecord, ITgRecordServi
 	public Result<?> queryPageList(TgRecord tgRecord,
 								   @RequestParam(name="pageNo", defaultValue="1") Integer pageNo,
 								   @RequestParam(name="pageSize", defaultValue="10") Integer pageSize,
+								   @RequestParam(name="status",defaultValue="2") Integer status,
 								   HttpServletRequest req) {
+
+		System.out.println("=========="+status);
 		QueryWrapper<TgRecord> queryWrapper = QueryGenerator.initQueryWrapper(tgRecord, req.getParameterMap());
+		if(status==1){
+			queryWrapper.ge("status_code",400);
+		}else if(status==0){
+			queryWrapper.lt("status_code",400);
+		}
 		Page<TgRecord> page = new Page<TgRecord>(pageNo, pageSize);
 		IPage<TgRecord> pageList = tgRecordService.page(page, queryWrapper);
 		return Result.ok(pageList);
