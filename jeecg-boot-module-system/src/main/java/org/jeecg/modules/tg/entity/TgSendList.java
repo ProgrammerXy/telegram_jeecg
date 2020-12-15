@@ -46,12 +46,12 @@ public class TgSendList implements Serializable {
 	/**所属部门*/
 	@Excel(name = "所属部门", width = 15)
     private String sysOrgCode;
-	/**tg用户id*/
-	@Excel(name = "tg用户id", width = 15)
+	/**tg账号*/
+	@Excel(name = "tg账号", width = 15)
     private String byChatId;
-	/**tg群id*/
-	@Excel(name = "tg群id", width = 15)
-    private String byGroupId;
+	/**类型*/
+	@Excel(name = "类型", width = 15)
+    private Integer type;
 	/**用户id*/
 	@Excel(name = "用户id", width = 15)
     private String userId;

@@ -163,8 +163,8 @@ public class SysPermission implements Serializable {
     	if(index) {
     		this.id = "9502685863ab87f0ad1134142788a385";
         	this.name="首页";
-        	this.component="dashboard/Analysis";
-        	this.url="/dashboard/analysis";
+        	this.component="tg/TgDomain";
+        	this.url="/tg/TgDomain";
         	this.icon="home";
         	this.menuType=0;
         	this.sortNo=0.0;
