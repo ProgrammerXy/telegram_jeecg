@@ -57,5 +57,5 @@ public class TgRecord implements Serializable {
     private String city;
 	/**状态码.不为200即为异常*/
 	@Excel(name = "状态码.不为200即为异常", width = 15)
-    private String statusCode;
+    private Integer statusCode;
 }

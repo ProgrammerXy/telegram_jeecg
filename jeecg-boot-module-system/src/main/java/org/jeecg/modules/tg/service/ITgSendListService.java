@@ -11,4 +11,6 @@ import org.jeecg.modules.tg.entity.TgSendList;
  */
 public interface ITgSendListService extends IService<TgSendList> {
 
+
+
 }

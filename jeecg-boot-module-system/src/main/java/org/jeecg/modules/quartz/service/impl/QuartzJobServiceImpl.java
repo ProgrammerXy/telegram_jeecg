@@ -100,7 +100,11 @@ public class QuartzJobServiceImpl extends ServiceImpl<QuartzJobMapper, QuartzJob
 			JobDetail jobDetail = JobBuilder.newJob(getClass(jobClassName).getClass()).withIdentity(jobClassName).usingJobData("parameter", parameter).build();
 
 			// 表达式调度构建器(即任务执行的时间)
-			SimpleScheduleBuilder scheduleBuilder = SimpleScheduleBuilder.simpleSchedule().withIntervalInSeconds(cronExpression).repeatForever();
+			SimpleScheduleBuilder scheduleBuilder = SimpleScheduleBuilder
+					.simpleSchedule()
+					.withIntervalInSeconds(cronExpression)
+					.repeatForever()
+					.withMisfireHandlingInstructionIgnoreMisfires();
 
 			// 按新的cronExpression表达式构建一个新的trigger
 			Trigger trigger = TriggerBuilder.newTrigger().withIdentity(jobClassName).withSchedule(scheduleBuilder).build();
