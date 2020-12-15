@@ -55,4 +55,7 @@ public class TgSendList implements Serializable {
 	/**用户id*/
 	@Excel(name = "用户id", width = 15)
     private String userId;
+	/**用户id*/
+	@Excel(name = "Tg唯一Id", width = 15)
+	private String chatId;
 }

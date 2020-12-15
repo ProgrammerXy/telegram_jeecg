@@ -68,7 +68,7 @@ public class TelegramBotJob implements Job {
     }
 
     @Override
-    public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
+    public void execute(JobExecutionContext jobExecutionContext) {
         //每次获取TG机器人最新订阅
         getTgBotConfigByCache();
         //获得所有用户排除管理员
@@ -87,27 +87,29 @@ public class TelegramBotJob implements Job {
                 JSONObject parse = (JSONObject) JSONObject.parse(s);
                 JSONArray data = parse.getJSONArray("data");
                 JSONObject jsonObject = data.getJSONObject(0);
-                String ip = jsonObject.getString("ip");
-                String city = jsonObject.getString("city");
-                String port = jsonObject.getString("port");
-                if (!CollectionUtils.isEmpty(userList)) {
-                    for (SysUser user : userList) {
-                        List<TgDomainConfig> list = tgDomainConfigService.list(new LambdaQueryWrapper<TgDomainConfig>().eq(TgDomainConfig::getUserId, user.getId()));
-                        if (!CollectionUtils.isEmpty(list)) {
-                            for (TgDomainConfig tgDomainConfig : list) {
-                                String result = ShellUtils.execCmd("curl --socks5 " + ip + ":" + port + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + tgDomainConfig.getDomain());
-                                int i = Integer.parseInt(result.replace("\"", ""));
-                                ResultVo resultVo = new ResultVo();
-                                TgRecord tgRecord = new TgRecord();
-                                tgRecord.setCity(city);
-                                tgRecord.setIp(ip);
-                                tgRecord.setDomain(tgDomainConfig.getDomain());
-                                tgRecord.setStatusCode(i);
-                                tgRecord.setCreateTime(new Date());
-                                BeanUtils.copyProperties(tgRecord, resultVo);
-                                resultVo.setUserId(tgDomainConfig.getUserId());
-                                resultVos.add(resultVo);
-                                tgRecordService.save(tgRecord);
+                if ( null != jsonObject){
+                    String ip = jsonObject.getString("ip");
+                    String city = jsonObject.getString("city");
+                    String port = jsonObject.getString("port");
+                    if (!CollectionUtils.isEmpty(userList)) {
+                        for (SysUser user : userList) {
+                            List<TgDomainConfig> list = tgDomainConfigService.list(new LambdaQueryWrapper<TgDomainConfig>().eq(TgDomainConfig::getUserId, user.getId()));
+                            if (!CollectionUtils.isEmpty(list)) {
+                                for (TgDomainConfig tgDomainConfig : list) {
+                                    String result = ShellUtils.execCmd("curl --socks5 " + ip + ":" + port + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + tgDomainConfig.getDomain());
+                                    int i = Integer.parseInt(result.replace("\"", ""));
+                                    ResultVo resultVo = new ResultVo();
+                                    TgRecord tgRecord = new TgRecord();
+                                    tgRecord.setCity(city);
+                                    tgRecord.setIp(ip);
+                                    tgRecord.setDomain(tgDomainConfig.getDomain());
+                                    tgRecord.setStatusCode(i);
+                                    tgRecord.setCreateTime(new Date());
+                                    BeanUtils.copyProperties(tgRecord, resultVo);
+                                    resultVo.setUserId(tgDomainConfig.getUserId());
+                                    resultVos.add(resultVo);
+                                    tgRecordService.save(tgRecord);
+                                }
                             }
                         }
                     }
@@ -142,8 +144,12 @@ public class TelegramBotJob implements Job {
                 setList.add(resultVo);
             }
         }
-        log.info("setList is -> {}",setList);
-        sendMassageByTelegramBot(setList);
+        log.info("setList is -> {}", setList);
+        try {
+            sendMassageByTelegramBot(setList);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -152,17 +158,39 @@ public class TelegramBotJob implements Job {
      * @param setList
      */
     private void sendMassageByTelegramBot(Set<ResultVo> setList) {
-        ArrayList<List<TgSendList>> lists = new ArrayList<>();
-        setList.forEach(item ->{
-            lists.add(tgSendListService.list(new LambdaQueryWrapper<TgSendList>().eq(TgSendList::getUserId, item.getUserId())));
-        });
-        lists.forEach(System.out::println);
-//        try {
-//            JSONObject tg_data = (JSONObject) redisUtil.get("TG_DATA");
-//            Http.doGet(SEND_MASSAGES);
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
+        Set<String> ids = new LinkedHashSet<>();
+        for (ResultVo resultVo : setList){
+            ids.add(resultVo.getUserId());
+            ArrayList<String> strInter = new ArrayList<>(ids);
+            Collection<TgSendList> tgSendLists = tgSendListService.searchByUserList(strInter);
+            for (TgSendList tgSendList : tgSendLists) {
+                String byChatId = tgSendList.getByChatId();
+                String chatId = tgSendList.getChatId();
+                if (StringUtils.isEmpty(chatId)) {
+                    JSONObject data = (JSONObject) redisUtil.get("TG_DATA");
+                    JSONArray result = data.getJSONArray("result");
+                    for (int i = 0; i < result.size(); i++) {
+                        JSONObject obj = result.getJSONObject(i);
+                        JSONObject message = obj.getJSONObject("message");
+                        JSONObject from = message.getJSONObject("from");
+                        String username = from.getString("username");
+                        if (username.equals(byChatId)) {
+                            chatId = from.getString("id");
+                            tgSendList.setChatId(chatId);
+                            tgSendListService.saveOrUpdate(tgSendList);
+                            break;
+                        }
+                    }
+                }
+                String url = SEND_MASSAGES + "chat_id=" + chatId + "text" + "您的域名" + resultVo.getDomain() + "在" + resultVo.getCreateTime() + "时响应异常";
+                try {
+                    Http.doGet(url);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
+
 
 }
