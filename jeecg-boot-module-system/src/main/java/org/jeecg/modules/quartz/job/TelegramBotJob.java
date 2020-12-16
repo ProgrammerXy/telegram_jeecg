@@ -56,8 +56,8 @@ public class TelegramBotJob implements Job {
 
     static {
         CITY_MAP.put("北京市", 110105);
-        CITY_MAP.put("上海市", 310112);
-        CITY_MAP.put("广东省", 440500);
+//        CITY_MAP.put("上海市", 310112);
+//        CITY_MAP.put("广东省", 440500);
 //        CITY_MAP.put("湖南省", 430600);
 //        CITY_MAP.put("湖北省", 420100);
 //        CITY_MAP.put("山东省", 370100);
@@ -130,10 +130,24 @@ public class TelegramBotJob implements Job {
             }
             JSONArray data = result.getJSONArray("data");
             JSONObject jsonObject = data.getJSONObject(0);
+            String ip = jsonObject.getString("ip");
+            String port = jsonObject.getString("port");
+            String city = jsonObject.getString("city");
+            String checkResult = ShellUtils.execCmd("curl --socks5 " + ip + ":" + port + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + "www.baidu.com");
+            int i = Integer.parseInt(checkResult.replace("\"", ""));
+            while ( !SUCCESS.equals(i) ){
+                s = Http.doGet(GET_IP + entry.getValue());
+                result = (JSONObject) JSONObject.parse(s);
+                data = result.getJSONArray("data");
+                jsonObject = data.getJSONObject(0);
+                ip = jsonObject.getString("ip");
+                port = jsonObject.getString("port");
+                i = Integer.parseInt(ShellUtils.execCmd("curl --socks5 " + ip + ":" + port + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + "www.baidu.com").replace("\"",""));
+            }
             IpPool ipPool = new IpPool();
-            ipPool.setIp(jsonObject.getString("ip"));
-            ipPool.setCity(jsonObject.getString("city"));
-            ipPool.setPort(jsonObject.getString("port"));
+            ipPool.setIp(ip);
+            ipPool.setCity(city);
+            ipPool.setPort(port);
             ipPools.add(ipPool);
         }
         return ipPools;
@@ -222,7 +236,7 @@ public class TelegramBotJob implements Job {
                 String format = simpleDateFormat.format(resultVo.getCreateTime());
                 String variable = null;
                 try {
-                    String encode = URLEncoder.encode("\n域名:         " + resultVo.getDomain() + "\n城市/ip:    " + resultVo.getCity() + "  " + resultVo.getIp() + "\n" + "状态:         异常\uD83D\uDE14" + "\n" + "时间:         " + format, "UTF-8");
+                    String encode = URLEncoder.encode("\n域名:         " + resultVo.getDomain() + "\n城市:         " + resultVo.getCity() + "\n" + "IP:             " + resultVo.getIp() + "\n" + "状态:         异常\uD83D\uDE14" + "\n" + "时间:         " + format + "\n" + "=================================", "UTF-8");
                     String string = "chat_id=" + chatId + "&text=";
                     variable = string + encode;
                 } catch (UnsupportedEncodingException e) {
