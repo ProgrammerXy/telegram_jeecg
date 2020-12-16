@@ -4,15 +4,15 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
 import org.jeecg.common.util.Http;
 import org.jeecg.common.util.RedisUtil;
+import org.jeecg.common.util.RestUtil;
 import org.jeecg.common.util.shell.ShellUtils;
 import org.jeecg.modules.system.entity.SysUser;
 import org.jeecg.modules.system.service.ISysUserService;
-import org.jeecg.modules.tg.entity.ResultVo;
-import org.jeecg.modules.tg.entity.TgDomainConfig;
-import org.jeecg.modules.tg.entity.TgRecord;
-import org.jeecg.modules.tg.entity.TgSendList;
+import org.jeecg.modules.tg.entity.*;
 import org.jeecg.modules.tg.service.ITgDomainConfigService;
 import org.jeecg.modules.tg.service.ITgRecordService;
 import org.jeecg.modules.tg.service.ITgSendListService;
@@ -24,8 +24,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static com.alibaba.fastjson.util.IOUtils.UTF8;
 import static org.jeecg.common.constant.UrlConstant.*;
 
 /**
@@ -54,21 +58,21 @@ public class TelegramBotJob implements Job {
         CITY_MAP.put("北京市", 110105);
         CITY_MAP.put("上海市", 310112);
         CITY_MAP.put("广东省", 440500);
-        CITY_MAP.put("湖南省", 430600);
-        CITY_MAP.put("湖北省", 420100);
-        CITY_MAP.put("山东省", 370100);
-        CITY_MAP.put("黑龙江省", 230600);
-        CITY_MAP.put("江苏省", 320100);
-        CITY_MAP.put("浙江省", 330100);
-        CITY_MAP.put("陕西省", 610100);
-        CITY_MAP.put("四川省", 510501);
-        CITY_MAP.put("重庆市", 500300);
-        CITY_MAP.put("安徽省", 340100);
-        CITY_MAP.put("福建省", 350100);
+//        CITY_MAP.put("湖南省", 430600);
+//        CITY_MAP.put("湖北省", 420100);
+//        CITY_MAP.put("山东省", 370100);
+//        CITY_MAP.put("黑龙江省", 230600);
+//        CITY_MAP.put("江苏省", 320100);
+//        CITY_MAP.put("浙江省", 330100);
+//        CITY_MAP.put("陕西省", 610100);
+//        CITY_MAP.put("四川省", 510501);
+//        CITY_MAP.put("重庆市", 500300);
+//        CITY_MAP.put("安徽省", 340100);
+//        CITY_MAP.put("福建省", 350100);
     }
 
     @Override
-    public void execute(JobExecutionContext jobExecutionContext) {
+    public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
         //每次获取TG机器人最新订阅
         getTgBotConfigByCache();
         //获得所有用户排除管理员
@@ -76,40 +80,33 @@ public class TelegramBotJob implements Job {
                 .notLike(SysUser::getUsername, "tgadmin")
                 .notLike(SysUser::getUsername, "jeecg"));
         List<ResultVo> resultVos = new ArrayList<>(Collections.emptyList());
-        for (Map.Entry<String, Integer> entry : CITY_MAP.entrySet()) {
-            String s = null;
-            try {
-                s = Http.doGet(GET_IP + entry.getValue());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            if (!StringUtils.isEmpty(s)) {
-                JSONObject parse = (JSONObject) JSONObject.parse(s);
-                JSONArray data = parse.getJSONArray("data");
-                JSONObject jsonObject = data.getJSONObject(0);
-                if ( null != jsonObject){
-                    String ip = jsonObject.getString("ip");
-                    String city = jsonObject.getString("city");
-                    String port = jsonObject.getString("port");
-                    if (!CollectionUtils.isEmpty(userList)) {
-                        for (SysUser user : userList) {
-                            List<TgDomainConfig> list = tgDomainConfigService.list(new LambdaQueryWrapper<TgDomainConfig>().eq(TgDomainConfig::getUserId, user.getId()));
-                            if (!CollectionUtils.isEmpty(list)) {
-                                for (TgDomainConfig tgDomainConfig : list) {
-                                    String result = ShellUtils.execCmd("curl --socks5 " + ip + ":" + port + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + tgDomainConfig.getDomain());
-                                    int i = Integer.parseInt(result.replace("\"", ""));
-                                    ResultVo resultVo = new ResultVo();
-                                    TgRecord tgRecord = new TgRecord();
-                                    tgRecord.setCity(city);
-                                    tgRecord.setIp(ip);
-                                    tgRecord.setDomain(tgDomainConfig.getDomain());
-                                    tgRecord.setStatusCode(i);
-                                    tgRecord.setCreateTime(new Date());
-                                    BeanUtils.copyProperties(tgRecord, resultVo);
-                                    resultVo.setUserId(tgDomainConfig.getUserId());
-                                    resultVos.add(resultVo);
-                                    tgRecordService.save(tgRecord);
-                                }
+        ArrayList<IpPool> ipPool = new ArrayList<>(Collections.emptyList());
+        try {
+            //获取可靠的ipPool
+            ipPool = getIpPool();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (!CollectionUtils.isEmpty(ipPool)) {
+            for (IpPool pool : ipPool) {
+                if (!CollectionUtils.isEmpty(userList)) {
+                    for (SysUser user : userList) {
+                        List<TgDomainConfig> list = tgDomainConfigService.list(new LambdaQueryWrapper<TgDomainConfig>().eq(TgDomainConfig::getUserId, user.getId()));
+                        if (!CollectionUtils.isEmpty(list)) {
+                            for (TgDomainConfig tgDomainConfig : list) {
+                                String result = ShellUtils.execCmd("curl --socks5 " + pool.getIp() + ":" + pool.getPort() + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + tgDomainConfig.getDomain());
+                                int i = Integer.parseInt(result.replace("\"", ""));
+                                ResultVo resultVo = new ResultVo();
+                                TgRecord tgRecord = new TgRecord();
+                                tgRecord.setCity(pool.getCity());
+                                tgRecord.setIp(pool.getIp());
+                                tgRecord.setDomain(tgDomainConfig.getDomain());
+                                tgRecord.setStatusCode(i);
+                                tgRecord.setCreateTime(new Date());
+                                BeanUtils.copyProperties(tgRecord, resultVo);
+                                resultVo.setUserId(tgDomainConfig.getUserId());
+                                resultVos.add(resultVo);
+                                tgRecordService.save(tgRecord);
                             }
                         }
                     }
@@ -117,6 +114,29 @@ public class TelegramBotJob implements Job {
             }
         }
         parsingData(resultVos);
+    }
+
+    private ArrayList<IpPool> getIpPool() throws Exception {
+        ArrayList<IpPool> ipPools = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : CITY_MAP.entrySet()) {
+            String s = "";
+            s = Http.doGet(GET_IP + entry.getValue());
+            JSONObject result = (JSONObject) JSONObject.parse(s);
+            Boolean flag = result.getBoolean("success");
+            while (!flag) {
+                s = Http.doGet(GET_IP + entry.getValue());
+                result = (JSONObject) JSONObject.parse(s);
+                flag = result.getBoolean("success");
+            }
+            JSONArray data = result.getJSONArray("data");
+            JSONObject jsonObject = data.getJSONObject(0);
+            IpPool ipPool = new IpPool();
+            ipPool.setIp(jsonObject.getString("ip"));
+            ipPool.setCity(jsonObject.getString("city"));
+            ipPool.setPort(jsonObject.getString("port"));
+            ipPools.add(ipPool);
+        }
+        return ipPools;
     }
 
     private void getTgBotConfigByCache() {
@@ -159,12 +179,13 @@ public class TelegramBotJob implements Job {
      */
     private void sendMassageByTelegramBot(Set<ResultVo> setList) {
         Set<String> ids = new LinkedHashSet<>();
-        for (ResultVo resultVo : setList){
+        for (ResultVo resultVo : setList) {
             ids.add(resultVo.getUserId());
             ArrayList<String> strInter = new ArrayList<>(ids);
             Collection<TgSendList> tgSendLists = tgSendListService.searchByUserList(strInter);
             for (TgSendList tgSendList : tgSendLists) {
                 String byChatId = tgSendList.getByChatId();
+                Integer type = tgSendList.getType();
                 String chatId = tgSendList.getChatId();
                 if (StringUtils.isEmpty(chatId)) {
                     JSONObject data = (JSONObject) redisUtil.get("TG_DATA");
@@ -172,19 +193,43 @@ public class TelegramBotJob implements Job {
                     for (int i = 0; i < result.size(); i++) {
                         JSONObject obj = result.getJSONObject(i);
                         JSONObject message = obj.getJSONObject("message");
-                        JSONObject from = message.getJSONObject("from");
-                        String username = from.getString("username");
-                        if (username.equals(byChatId)) {
-                            chatId = from.getString("id");
-                            tgSendList.setChatId(chatId);
-                            tgSendListService.saveOrUpdate(tgSendList);
-                            break;
+                        if (type == 1) {
+                            JSONObject from = message.getJSONObject("from");
+                            String username = from.getString("username");
+                            if (!StringUtils.isEmpty(username)) {
+                                if (username.equals(byChatId)) {
+                                    chatId = from.getString("id");
+                                    tgSendList.setChatId(chatId);
+                                    tgSendListService.saveOrUpdate(tgSendList);
+                                    break;
+                                }
+                            }
+                        } else {
+                            JSONObject chat = message.getJSONObject("chat");
+                            String title = chat.getString("title");
+                            if (!StringUtils.isEmpty(title)) {
+                                if (title.equals(byChatId)) {
+                                    chatId = chat.getString("id");
+                                    tgSendList.setChatId(chatId);
+                                    tgSendListService.saveOrUpdate(tgSendList);
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
-                String url = SEND_MASSAGES + "chat_id=" + chatId + "text" + "您的域名" + resultVo.getDomain() + "在" + resultVo.getCreateTime() + "时响应异常";
+                SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                String format = simpleDateFormat.format(resultVo.getCreateTime());
+                String variable = null;
                 try {
-                    Http.doGet(url);
+                    String encode = URLEncoder.encode("\n域名:         " + resultVo.getDomain() + "\n城市/ip:    " + resultVo.getCity() + "  " + resultVo.getIp() + "\n" + "状态:         异常\uD83D\uDE14" + "\n" + "时间:         " + format, "UTF-8");
+                    String string = "chat_id=" + chatId + "&text=";
+                    variable = string + encode;
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    Http.doGet(SEND_MASSAGES + variable);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

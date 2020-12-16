@@ -9,10 +9,7 @@ import org.springframework.stereotype.Service;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 /**
  * @Description: 电报机器人发送列表
@@ -28,12 +25,10 @@ public class TgSendListServiceImpl extends ServiceImpl<TgSendListMapper, TgSendL
 
     @Override
     public Collection<TgSendList> searchByUserList(ArrayList<String> ids) {
-        List<TgSendList> objects = Arrays.asList();
+        List<TgSendList> objects = new ArrayList<>(Collections.emptyList());
         for (String id : ids) {
             List<TgSendList> tgSendLists = sendListMapper.selectList(new LambdaQueryWrapper<TgSendList>().eq(TgSendList::getUserId, id));
-            for (TgSendList tgSendList : tgSendLists ){
-                objects.add(tgSendList);
-            }
+            objects.addAll(tgSendLists);
         }
         return objects;
     }

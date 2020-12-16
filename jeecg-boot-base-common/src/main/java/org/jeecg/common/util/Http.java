@@ -145,7 +145,7 @@ public class Http {
             outputStreamWriter.write(parameterBuffer.toString());
             outputStreamWriter.flush();
 
-            if (httpURLConnection.getResponseCode() >= 300) {
+            if (httpURLConnection.getResponseCode() >= 10000) {
                 throw new Exception("HTTP Request is not success, Response code is " + httpURLConnection.getResponseCode());
             }
 
