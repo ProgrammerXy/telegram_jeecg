@@ -7,10 +7,16 @@ import java.util.stream.Collectors;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import com.baomidou.mybatisplus.core.assist.ISqlRunner;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.apache.shiro.SecurityUtils;
 import org.jeecg.common.api.vo.Result;
 import org.jeecg.common.system.query.QueryGenerator;
+import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.common.util.oConvertUtils;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -18,6 +24,11 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.extern.slf4j.Slf4j;
 
+import org.jeecg.modules.system.entity.SysRole;
+import org.jeecg.modules.system.entity.SysUser;
+import org.jeecg.modules.system.mapper.SysUserMapper;
+import org.jeecg.modules.system.service.ISysRoleService;
+import org.jeecg.modules.system.service.ISysUserService;
 import org.jeecg.modules.tg.entity.TgDomainConfig;
 import org.jeecg.modules.tg.service.ITgDomainConfigService;
 import org.jeecgframework.poi.excel.ExcelImportUtil;
@@ -45,8 +56,15 @@ import com.alibaba.fastjson.JSON;
 public class TgDomainConfigController extends JeecgController<TgDomainConfig, ITgDomainConfigService> {
 	@Autowired
 	private ITgDomainConfigService tgDomainConfigService;
-	
-	/**
+
+	@Resource
+	private ISysUserService sysUserService;
+
+	@Resource
+	private ISysRoleService roleService;
+
+
+	 /**
 	 * 分页列表查询
 	 *
 	 * @param tgDomainConfig
@@ -60,7 +78,14 @@ public class TgDomainConfigController extends JeecgController<TgDomainConfig, IT
 								   @RequestParam(name="pageNo", defaultValue="1") Integer pageNo,
 								   @RequestParam(name="pageSize", defaultValue="10") Integer pageSize,
 								   HttpServletRequest req) {
+		LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
+		SysUser sysUser = sysUserService.getById(loginUser.getId());
+		SysRole role = roleService.getByUserId(sysUser.getId());
 		QueryWrapper<TgDomainConfig> queryWrapper = QueryGenerator.initQueryWrapper(tgDomainConfig, req.getParameterMap());
+		if(role==null){
+			queryWrapper.eq("user_id",loginUser.getId());
+		}
+		if(sysUser.getRealname().equals("admin")){}
 		Page<TgDomainConfig> page = new Page<TgDomainConfig>(pageNo, pageSize);
 		IPage<TgDomainConfig> pageList = tgDomainConfigService.page(page, queryWrapper);
 		return Result.ok(pageList);

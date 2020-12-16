@@ -1,16 +1,18 @@
 package org.jeecg.modules.tg.controller;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import org.apache.shiro.SecurityUtils;
 import org.jeecg.common.api.vo.Result;
 import org.jeecg.common.system.query.QueryGenerator;
+import org.jeecg.common.system.vo.LoginUser;
 import org.jeecg.common.util.oConvertUtils;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -18,7 +20,14 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.extern.slf4j.Slf4j;
 
+import org.jeecg.modules.system.entity.SysRole;
+import org.jeecg.modules.system.entity.SysUser;
+import org.jeecg.modules.system.service.ISysRoleService;
+import org.jeecg.modules.system.service.ISysUserService;
+import org.jeecg.modules.tg.entity.TgDomainConfig;
 import org.jeecg.modules.tg.entity.TgRecord;
+import org.jeecg.modules.tg.mapper.TgDomainConfigMapper;
+import org.jeecg.modules.tg.service.ITgDomainConfigService;
 import org.jeecg.modules.tg.service.ITgRecordService;
 import org.jeecgframework.poi.excel.ExcelImportUtil;
 import org.jeecgframework.poi.excel.def.NormalExcelConstants;
@@ -45,6 +54,18 @@ import com.alibaba.fastjson.JSON;
 public class TgRecordController extends JeecgController<TgRecord, ITgRecordService> {
 	@Autowired
 	private ITgRecordService tgRecordService;
+
+	 @Resource
+	 private ISysUserService sysUserService;
+
+	 @Autowired
+	 private ITgDomainConfigService domainConfigService;
+
+	 @Resource
+	 private TgDomainConfigMapper tgDomainConfigMapper;
+
+	 @Resource
+	 private ISysRoleService roleService;
 	
 	/**
 	 * 分页列表查询
@@ -61,14 +82,24 @@ public class TgRecordController extends JeecgController<TgRecord, ITgRecordServi
 								   @RequestParam(name="pageSize", defaultValue="10") Integer pageSize,
 								   @RequestParam(name="status",defaultValue="2") Integer status,
 								   HttpServletRequest req) {
-
-		System.out.println("=========="+status);
 		QueryWrapper<TgRecord> queryWrapper = QueryGenerator.initQueryWrapper(tgRecord, req.getParameterMap());
+		LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
+		SysUser sysUser = sysUserService.getById(loginUser.getId());
+		SysRole role = roleService.getByUserId(sysUser.getId());
+		if(role==null){
+			List<TgDomainConfig> domainConfigList = tgDomainConfigMapper.selectList(new QueryWrapper<TgDomainConfig>().eq("user_id", sysUser.getId()));
+			List<String> list = new ArrayList<>();
+			for (TgDomainConfig value:domainConfigList) {
+				list.add(value.getDomain());
+			}
+			queryWrapper.in("domain",list);
+		}
 		if(status==1){
 			queryWrapper.ge("status_code",400);
 		}else if(status==0){
 			queryWrapper.lt("status_code",400);
 		}
+		queryWrapper.orderBy(true,false,"create_time");
 		Page<TgRecord> page = new Page<TgRecord>(pageNo, pageSize);
 		IPage<TgRecord> pageList = tgRecordService.page(page, queryWrapper);
 		return Result.ok(pageList);
