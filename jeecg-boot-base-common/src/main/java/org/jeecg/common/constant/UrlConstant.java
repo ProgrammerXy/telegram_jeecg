@@ -10,5 +10,9 @@ public interface UrlConstant {
 
     public static final String SEND_MASSAGES = "https://api.telegram.org/bot1487218326:AAEEa0YF1U-NBl_XTwsnwLbOuSK9SaOYYoE/sendMessage?";
 
+    public static final String TG_BOT_GET_UPDATES_BY_PROXY = "http://18.162.110.168/api/accept/updates";
+
+    public static final String SEND_MASSAGES_BY_PROXY = "http://18.162.110.168/api/accept/message";
+
     public static final Integer SUCCESS = 200;
 }

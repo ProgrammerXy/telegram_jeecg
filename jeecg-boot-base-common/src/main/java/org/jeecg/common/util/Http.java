@@ -94,7 +94,7 @@ public class Http {
      * @return
      * @throws Exception
      */
-    public String doPost(String url, Map parameterMap) throws Exception {
+    public static String doPost(String url, Map parameterMap) throws Exception {
 
         /* Translate parameter map to parameter date string */
         StringBuffer parameterBuffer = new StringBuffer();
@@ -127,7 +127,7 @@ public class Http {
         httpURLConnection.setDoOutput(true);
         httpURLConnection.setRequestMethod("POST");
         httpURLConnection.setRequestProperty("Accept-Charset", charset);
-        httpURLConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        httpURLConnection.setRequestProperty("Content-Type", "application/json");
         httpURLConnection.setRequestProperty("Content-Length", String.valueOf(parameterBuffer.length()));
 
         OutputStream outputStream = null;

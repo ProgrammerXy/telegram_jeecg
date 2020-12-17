@@ -56,19 +56,19 @@ public class TelegramBotJob implements Job {
 
     static {
         CITY_MAP.put("北京市", 110105);
-        CITY_MAP.put("上海市", 310112);
-        CITY_MAP.put("广东省", 440500);
-        CITY_MAP.put("湖南省", 430600);
-        CITY_MAP.put("湖北省", 420100);
-        CITY_MAP.put("山东省", 370100);
-        CITY_MAP.put("黑龙江省", 230600);
-        CITY_MAP.put("江苏省", 320100);
-        CITY_MAP.put("浙江省", 330100);
-        CITY_MAP.put("陕西省", 610100);
-        CITY_MAP.put("四川省", 510501);
-        CITY_MAP.put("重庆市", 500300);
-        CITY_MAP.put("安徽省", 340100);
-        CITY_MAP.put("福建省", 350100);
+//        CITY_MAP.put("上海市", 310112);
+//        CITY_MAP.put("广东省", 440500);
+//        CITY_MAP.put("湖南省", 430600);
+//        CITY_MAP.put("湖北省", 420100);
+//        CITY_MAP.put("山东省", 370100);
+//        CITY_MAP.put("黑龙江省", 230600);
+//        CITY_MAP.put("江苏省", 320100);
+//        CITY_MAP.put("浙江省", 330100);
+//        CITY_MAP.put("陕西省", 610100);
+//        CITY_MAP.put("四川省", 510501);
+//        CITY_MAP.put("重庆市", 500300);
+//        CITY_MAP.put("安徽省", 340100);
+//        CITY_MAP.put("福建省", 350100);
     }
 
     @Override
@@ -152,13 +152,15 @@ public class TelegramBotJob implements Job {
     private void getTgBotConfigByCache() {
         String data = "";
         try {
-            data = Http.doGet(TG_BOT_GET_UPDATES);
+            data = Http.doGet(TG_BOT_GET_UPDATES_BY_PROXY);
         } catch (Exception e) {
             e.printStackTrace();
         }
-        redisUtil.del("TG_DATA");
-        JSONObject parse = (JSONObject) JSONObject.parse(data);
-        redisUtil.set("TG_DATA", parse);
+        if (!StringUtils.isEmpty(data)) {
+            redisUtil.del("TG_DATA");
+            JSONObject parse = (JSONObject) JSONObject.parse(data);
+            redisUtil.set("TG_DATA", parse);
+        }
     }
 
     /**
@@ -168,7 +170,7 @@ public class TelegramBotJob implements Job {
      * @description 总结果集去重
      */
     private void parsingData(List<ResultVo> resultLists) {
-        if (CollectionUtils.isEmpty(resultLists)){
+        if (CollectionUtils.isEmpty(resultLists)) {
             return;
         }
         Set<ResultVo> setList = new LinkedHashSet<>();
@@ -234,15 +236,19 @@ public class TelegramBotJob implements Job {
                 SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 String format = simpleDateFormat.format(resultVo.getCreateTime());
                 String variable = null;
+                String encode = null;
+                String string = "chat_id=" + chatId + "&text=";
                 try {
-                    String encode = URLEncoder.encode("\n域名:         " + resultVo.getDomain() + "\n城市:         " + resultVo.getCity() + "\n" + "IP:             " + resultVo.getIp() + "\n" + "状态:         异常\uD83D\uDE14" + "\n" + "时间:         " + format + "\n" + "=================================", "UTF-8");
-                    String string = "chat_id=" + chatId + "&text=";
-                    variable = string + encode;
+                    encode = URLEncoder.encode("\n域名:         " + resultVo.getDomain() + "\n城市:         " + resultVo.getCity() + "\n" + "IP:             " + resultVo.getIp() + "\n" + "状态:         异常\uD83D\uDE14" + "\n" + "时间:         " + format + "\n" + "=================================","UTF-8");
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
                 }
+                variable = string + encode;
                 try {
-                    Http.doGet(SEND_MASSAGES + variable);
+                    String url = SEND_MASSAGES + variable;
+                    JSONObject data = new JSONObject();
+                    data.put("url",url);
+                    RestUtil.post(SEND_MASSAGES_BY_PROXY,data);
                     Thread.sleep(3000);
                 } catch (Exception e) {
                     e.printStackTrace();
