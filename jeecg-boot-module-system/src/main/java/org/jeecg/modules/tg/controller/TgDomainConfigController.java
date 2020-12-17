@@ -99,6 +99,9 @@ public class TgDomainConfigController extends JeecgController<TgDomainConfig, IT
 	 */
 	@PostMapping(value = "/add")
 	public Result<?> add(@RequestBody TgDomainConfig tgDomainConfig) {
+		LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
+		SysUser sysUser = sysUserService.getById(loginUser.getId());
+		tgDomainConfig.setUserId(sysUser.getId());
 		tgDomainConfigService.save(tgDomainConfig);
 		return Result.ok("添加成功！");
 	}
