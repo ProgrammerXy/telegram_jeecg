@@ -56,19 +56,19 @@ public class TelegramBotJob implements Job {
 
     static {
         CITY_MAP.put("北京市", 110105);
-//        CITY_MAP.put("上海市", 310112);
-//        CITY_MAP.put("广东省", 440500);
-//        CITY_MAP.put("湖南省", 430600);
-//        CITY_MAP.put("湖北省", 420100);
-//        CITY_MAP.put("山东省", 370100);
-//        CITY_MAP.put("黑龙江省", 230600);
-//        CITY_MAP.put("江苏省", 320100);
-//        CITY_MAP.put("浙江省", 330100);
-//        CITY_MAP.put("陕西省", 610100);
-//        CITY_MAP.put("四川省", 510501);
-//        CITY_MAP.put("重庆市", 500300);
-//        CITY_MAP.put("安徽省", 340100);
-//        CITY_MAP.put("福建省", 350100);
+        CITY_MAP.put("上海市", 310112);
+        CITY_MAP.put("广东省", 440500);
+        CITY_MAP.put("湖南省", 430600);
+        CITY_MAP.put("湖北省", 420100);
+        CITY_MAP.put("山东省", 370100);
+        CITY_MAP.put("黑龙江省", 230600);
+        CITY_MAP.put("江苏省", 320100);
+        CITY_MAP.put("浙江省", 330100);
+        CITY_MAP.put("陕西省", 610100);
+        CITY_MAP.put("四川省", 510501);
+        CITY_MAP.put("重庆市", 500300);
+        CITY_MAP.put("安徽省", 340100);
+        CITY_MAP.put("福建省", 350100);
     }
 
     @Override
@@ -95,6 +95,11 @@ public class TelegramBotJob implements Job {
                         if (!CollectionUtils.isEmpty(list)) {
                             for (TgDomainConfig tgDomainConfig : list) {
                                 String result = ShellUtils.execCmd("curl --socks5 " + pool.getIp() + ":" + pool.getPort() + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + tgDomainConfig.getDomain());
+                                try {
+                                    Thread.sleep(5000);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
                                 int i = Integer.parseInt(result.replace("\"", ""));
                                 ResultVo resultVo = new ResultVo();
                                 TgRecord tgRecord = new TgRecord();
@@ -121,34 +126,25 @@ public class TelegramBotJob implements Job {
         for (Map.Entry<String, Integer> entry : CITY_MAP.entrySet()) {
             String s = "";
             s = Http.doGet(GET_IP + entry.getValue());
+            Thread.sleep(5000);
             JSONObject result = (JSONObject) JSONObject.parse(s);
             Boolean flag = result.getBoolean("success");
-            while (!flag) {
-                s = Http.doGet(GET_IP + entry.getValue());
-                result = (JSONObject) JSONObject.parse(s);
-                flag = result.getBoolean("success");
+            if (flag) {
+                JSONArray data = result.getJSONArray("data");
+                JSONObject jsonObject = data.getJSONObject(0);
+                String ip = jsonObject.getString("ip");
+                String port = jsonObject.getString("port");
+                String city = jsonObject.getString("city");
+                String checkResult = ShellUtils.execCmd("curl --socks5 " + ip + ":" + port + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + "www.baidu.com");
+                int i = Integer.parseInt(checkResult.replace("\"", ""));
+                if (SUCCESS.equals(i)) {
+                    IpPool ipPool = new IpPool();
+                    ipPool.setIp(ip);
+                    ipPool.setCity(city);
+                    ipPool.setPort(port);
+                    ipPools.add(ipPool);
+                }
             }
-            JSONArray data = result.getJSONArray("data");
-            JSONObject jsonObject = data.getJSONObject(0);
-            String ip = jsonObject.getString("ip");
-            String port = jsonObject.getString("port");
-            String city = jsonObject.getString("city");
-            String checkResult = ShellUtils.execCmd("curl --socks5 " + ip + ":" + port + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + "www.baidu.com");
-            int i = Integer.parseInt(checkResult.replace("\"", ""));
-            while ( !SUCCESS.equals(i) ){
-                s = Http.doGet(GET_IP + entry.getValue());
-                result = (JSONObject) JSONObject.parse(s);
-                data = result.getJSONArray("data");
-                jsonObject = data.getJSONObject(0);
-                ip = jsonObject.getString("ip");
-                port = jsonObject.getString("port");
-                i = Integer.parseInt(ShellUtils.execCmd("curl --socks5 " + ip + ":" + port + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + "www.baidu.com").replace("\"",""));
-            }
-            IpPool ipPool = new IpPool();
-            ipPool.setIp(ip);
-            ipPool.setCity(city);
-            ipPool.setPort(port);
-            ipPools.add(ipPool);
         }
         return ipPools;
     }
@@ -172,6 +168,9 @@ public class TelegramBotJob implements Job {
      * @description 总结果集去重
      */
     private void parsingData(List<ResultVo> resultLists) {
+        if (CollectionUtils.isEmpty(resultLists)){
+            return;
+        }
         Set<ResultVo> setList = new LinkedHashSet<>();
         for (ResultVo resultVo : resultLists) {
             if (resultVo.getStatusCode() > 400 || resultVo.getStatusCode() == 000) {
@@ -244,6 +243,7 @@ public class TelegramBotJob implements Job {
                 }
                 try {
                     Http.doGet(SEND_MASSAGES + variable);
+                    Thread.sleep(3000);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
