@@ -56,19 +56,19 @@ public class TelegramBotJob implements Job {
 
     static {
         CITY_MAP.put("北京市", 110105);
-//        CITY_MAP.put("上海市", 310112);
-//        CITY_MAP.put("广东省", 440500);
-//        CITY_MAP.put("湖南省", 430600);
-//        CITY_MAP.put("湖北省", 420100);
-//        CITY_MAP.put("山东省", 370100);
-//        CITY_MAP.put("黑龙江省", 230600);
-//        CITY_MAP.put("江苏省", 320100);
-//        CITY_MAP.put("浙江省", 330100);
-//        CITY_MAP.put("陕西省", 610100);
-//        CITY_MAP.put("四川省", 510501);
-//        CITY_MAP.put("重庆市", 500300);
-//        CITY_MAP.put("安徽省", 340100);
-//        CITY_MAP.put("福建省", 350100);
+        CITY_MAP.put("上海市", 310112);
+        CITY_MAP.put("广东省", 440500);
+        CITY_MAP.put("湖南省", 430600);
+        CITY_MAP.put("湖北省", 420100);
+        CITY_MAP.put("山东省", 370100);
+        CITY_MAP.put("黑龙江省", 230600);
+        CITY_MAP.put("江苏省", 320100);
+        CITY_MAP.put("浙江省", 330100);
+        CITY_MAP.put("陕西省", 610100);
+        CITY_MAP.put("四川省", 510501);
+        CITY_MAP.put("重庆市", 500300);
+        CITY_MAP.put("安徽省", 340100);
+        CITY_MAP.put("福建省", 350100);
     }
 
     @Override
