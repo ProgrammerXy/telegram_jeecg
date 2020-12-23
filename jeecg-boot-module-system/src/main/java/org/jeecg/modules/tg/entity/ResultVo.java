@@ -17,5 +17,6 @@ public class ResultVo implements Serializable {
     private String domain;
     private String userId;
     private String ip;
+    private String port;
     private Date createTime;
 }

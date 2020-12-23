@@ -94,22 +94,34 @@ public class TelegramBotJob implements Job {
                         List<TgDomainConfig> list = tgDomainConfigService.list(new LambdaQueryWrapper<TgDomainConfig>().eq(TgDomainConfig::getUserId, user.getId()));
                         if (!CollectionUtils.isEmpty(list)) {
                             for (TgDomainConfig tgDomainConfig : list) {
-                                String result = ShellUtils.execCmd("curl --socks5 " + pool.getIp() + ":" + pool.getPort() + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + tgDomainConfig.getDomain());
+                                int count = 0;
+                                int code = 0;
+                                for (int i = 0; i < 3; i++) {
+                                    String result = ShellUtils.execCmd("curl --socks5 " + pool.getIp() + ":" + pool.getPort() + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + tgDomainConfig.getDomain() + " --speed-time 10 --speed-limit 1");
+                                    code = Integer.parseInt(result.replace("\"", ""));
+                                    if (code == 000 || code > 400) {
+                                        count++;
+                                    }
+                                }
+                                if (count > 1) {
+                                    code = 000;
+                                }
                                 try {
                                     Thread.sleep(5000);
                                 } catch (InterruptedException e) {
                                     e.printStackTrace();
                                 }
-                                int i = Integer.parseInt(result.replace("\"", ""));
+
                                 ResultVo resultVo = new ResultVo();
                                 TgRecord tgRecord = new TgRecord();
                                 tgRecord.setCity(pool.getCity());
                                 tgRecord.setIp(pool.getIp());
                                 tgRecord.setDomain(tgDomainConfig.getDomain());
-                                tgRecord.setStatusCode(i);
+                                tgRecord.setStatusCode(code);
                                 tgRecord.setCreateTime(new Date());
                                 BeanUtils.copyProperties(tgRecord, resultVo);
                                 resultVo.setUserId(tgDomainConfig.getUserId());
+                                resultVo.setPort(pool.getPort());
                                 resultVos.add(resultVo);
                                 tgRecordService.save(tgRecord);
                             }
@@ -135,9 +147,15 @@ public class TelegramBotJob implements Job {
                 String ip = jsonObject.getString("ip");
                 String port = jsonObject.getString("port");
                 String city = jsonObject.getString("city");
-                String checkResult = ShellUtils.execCmd("curl --socks5 " + ip + ":" + port + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + "www.baidu.com");
-                int i = Integer.parseInt(checkResult.replace("\"", ""));
-                if (SUCCESS.equals(i)) {
+                int count = 0;
+                for ( int i = 0 ;i<3;i++){
+                    String checkResult = ShellUtils.execCmd("curl --socks5 " + ip + ":" + port + "-I -m 5 -s -w \"%{http_code}\\n\"" + " -o " + " /dev/null " + "www.baidu.com --speed-time 10 --speed-limit 1");
+                    int code = Integer.parseInt(checkResult.replace("\"", ""));
+                    if (000 == code || 400 < code){
+                        count++;
+                    }
+                }
+                if (1 > count) {
                     IpPool ipPool = new IpPool();
                     ipPool.setIp(ip);
                     ipPool.setCity(city);
@@ -175,7 +193,7 @@ public class TelegramBotJob implements Job {
         }
         Set<ResultVo> setList = new LinkedHashSet<>();
         for (ResultVo resultVo : resultLists) {
-            if (resultVo.getStatusCode() > 400 || resultVo.getStatusCode() == 000) {
+            if (resultVo.getStatusCode() > 400 ) {
                 setList.add(resultVo);
             }
         }
@@ -239,7 +257,7 @@ public class TelegramBotJob implements Job {
                 String encode = null;
                 String string = "chat_id=" + chatId + "&text=";
                 try {
-                    encode = URLEncoder.encode("\n域名:         " + resultVo.getDomain() + "\n城市:         " + resultVo.getCity() + "\n" + "IP:             " + resultVo.getIp() + "\n" + "状态:         异常\uD83D\uDE14" + "\n" + "时间:         " + format + "\n" + "=================================","UTF-8");
+                    encode = URLEncoder.encode("\n域名:         " + resultVo.getDomain() + "\n城市:         " + resultVo.getCity() + "\n" + "IP:             " + resultVo.getIp() + "\n" + "PORT:        " + resultVo.getPort() + "\n" + "状态:         异常\uD83D\uDE14" + "\n" + "时间:         " + format + "\n" + "=================================", "UTF-8");
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
                 }
@@ -247,8 +265,8 @@ public class TelegramBotJob implements Job {
                 try {
                     String url = SEND_MASSAGES + variable;
                     JSONObject data = new JSONObject();
-                    data.put("url",url);
-                    RestUtil.post(SEND_MASSAGES_BY_PROXY,data);
+                    data.put("url", url);
+                    RestUtil.post(SEND_MASSAGES_BY_PROXY, data);
                     Thread.sleep(3000);
                 } catch (Exception e) {
                     e.printStackTrace();
